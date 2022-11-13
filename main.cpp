@@ -68,7 +68,9 @@ class Player {
         Player() {};
         void set_hand_size(int hand_size_max);
         bool draw(std::vector<int> &deck);
+        int get_must_play(std::vector<int> &deck);
         std::vector<Move> get_legal_moves(Pile* piles);
+        std::vector<Move> play_robotic(Pile* piles, std::vector<int> &deck);
 };
 void Player::set_hand_size(int hand_size_max) {
     this->hand_size_max = hand_size_max;
@@ -84,6 +86,9 @@ bool Player::draw(std::vector<int> &deck) {
         deck.pop_back();
     }
     return true;
+}
+int Player::get_must_play(std::vector<int> &deck) {
+    return 2 - (int) deck.empty();
 }
 std::vector<Move> Player::get_legal_moves(Pile* piles) {
     std::vector<Move> moves;
@@ -103,13 +108,28 @@ std::vector<Move> Player::get_legal_moves(Pile* piles) {
     return moves;
 }
 
+std::vector<Move> Player::play_robotic(Pile* piles, std::vector<int> &deck) {
+    std::vector<Move> plays;
+    for (int i = 0; i < get_must_play(deck); i++) {
+        std::vector<Move> moves = get_legal_moves(piles);
+        if (!moves.empty()) {
+            plays.push_back(moves[0]);
+            moves[0].perform();
+        }
+    }
+    draw(deck);
+    return plays;
+}
+
 class Game {
     public:
         std::vector<int> deck;
         Pile* piles;
-        Player* players;
+        std::vector<Player> players;
         int playercount;
         Game(int playercount);
+        void emulate();
+        int get_score();
 };
 Game::Game(int playercount) {
     deck.reserve(99);
@@ -119,12 +139,31 @@ Game::Game(int playercount) {
     std::shuffle(deck.begin(), deck.end(), std::default_random_engine());
     int hand_size_max = 9 - std::min(3, playercount);
     piles = new Pile[4];
-    players = new Player[playercount];
+    players.reserve(playercount);
     for (int i=0; i < 4; i++) {
+        Player player;
+        player.set_hand_size(hand_size_max);
+        player.draw(deck);
+        players.push_back(player);
         piles[i].set_type((i <= 1));
-        players[i].set_hand_size(hand_size_max);
-        players[i].draw(deck);
     }
+}
+void Game::emulate() {
+    while (true) {
+        for (auto p = players.begin(); p != players.end(); ++p) {
+            std::vector<Move> plays = p->play_robotic(piles, deck);
+            if (plays.size() < 2 - deck.empty()) {
+                return;
+            }
+        }
+    }
+}
+int Game::get_score() {
+    int score = deck.size();
+    for (auto p = players.begin(); p != players.end(); ++p) {
+        score += p->hand.size();
+    }
+    return score;
 }
 
 void print_vector(std::vector<int> v) {
@@ -135,10 +174,16 @@ void print_vector(std::vector<int> v) {
 }
 
 int main(){
-    Game game(4);
-    game.piles[0].append(79);
-    auto moves = game.players[0].get_legal_moves(game.piles);
-    for (auto it = moves.begin(); it != moves.end(); ++it) {
-        std::cout << it->card << " onto " << it->pile->content.back() << " of cost " << it->cost << '\n';
+    for (int i = 0; i < 1; i++) {
+        Game game(4);
+        game.emulate();
+        std::cout << game.get_score() << '\n';
+        for (int i = 0; i < 4; i++) {
+            print_vector(game.piles[i].content);
+        }
+        for (auto it = game.players.begin(); it != game.players.end(); ++it) {
+            print_vector(it->hand);
+        }
+        print_vector(game.deck);
     }
 }
