@@ -127,16 +127,17 @@ class Game {
         Pile* piles;
         std::vector<Player> players;
         int playercount;
-        Game(int playercount);
+        std::default_random_engine* rng;
+        Game(int playercount, std::default_random_engine* rng);
         void emulate();
         int get_score();
 };
-Game::Game(int playercount) {
+Game::Game(int playercount, std::default_random_engine* rng) {
     deck.reserve(99);
     for (int i = 0; i < 99; i++) {
         deck.push_back(i+1);
     }
-    std::shuffle(deck.begin(), deck.end(), std::default_random_engine());
+    std::shuffle(deck.begin(), deck.end(), *rng);
     int hand_size_max = 9 - std::min(3, playercount);
     piles = new Pile[4];
     players.reserve(playercount);
@@ -174,8 +175,9 @@ void print_vector(std::vector<int> v) {
 }
 
 int main(){
+    std::default_random_engine rng(0);
     for (int i = 0; i < 1; i++) {
-        Game game(4);
+        Game game(4, &rng);
         game.emulate();
         std::cout << game.get_score() << '\n';
         for (int i = 0; i < 4; i++) {
